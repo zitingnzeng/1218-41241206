@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代辦事項管理</title>
+    <!-- 引入 Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #74ebd5, #acb6e5);
+            font-family: Arial, sans-serif;
+            color: #333;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .card {
+            background-color: #fff;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #004085;
+        }
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+        .btn-success:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+        h1 {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">代辦事項管理</h1>
+
+        <!-- 新增代辦事項表單 -->
+        <div class="card p-4 mb-4">
+            <h2 class="h4">新增代辦事項</h2>
+            <form id="addTodoForm">
+                <div class="mb-3">
+                    <label for="add_student_id" class="form-label">學生ID</label>
+                    <input type="text" id="add_student_id" class="form-control" value="41241206" readonly required>
+                </div>
+                <div class="mb-3">
+                    <label for="add_task" class="form-label">代辦事項</label>
+                    <textarea id="add_task" class="form-control" rows="2" placeholder="輸入代辦事項" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-success w-100">新增代辦事項</button>
+            </form>
+        </div>
+
+        <!-- 代辦事項列表 -->
+        <div class="card p-4">
+            <h2 class="h4">代辦事項列表</h2>
+            <div class="mb-3">
+                <label for="list_student_id" class="form-label">學生ID</label>
+                <input type="text" id="list_student_id" class="form-control" value="41241206" readonly>
+            </div>
+            <button id="fetchTodos" class="btn btn-primary w-100 mb-3">取得代辦事項</button>
+            <table class="table table-bordered table-striped" id="todosTable" style="display: none;">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>代辦事項</th>
+                        <th>完成狀態</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="message" class="text-center mt-3"></div>
+        </div>
+
+        <!-- 修改代辦事項 Modal -->
+        <div class="modal fade" id="editTodoModal" tabindex="-1" aria-labelledby="editTodoModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editTodoModalLabel">修改代辦事項</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editTodoForm">
+                            <div class="mb-3">
+                                <label for="edit_student_id" class="form-label">學生ID</label>
+                                <input type="text" id="edit_student_id" class="form-control" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_task" class="form-label">代辦事項</label>
+                                <textarea id="edit_task" class="form-control" rows="2" required></textarea>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" id="edit_completed" class="form-check-input">
+                                <label for="edit_completed" class="form-check-label">已完成</label>
+                            </div>
+                            <input type="hidden" id="edit_todo_id">
+                            <button type="submit" class="btn btn-primary w-100 mt-3">儲存修改</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入 Bootstrap 的 JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const API_URL = 'https://nfutest.pythonanywhere.com';
+
+        // 新增代辦事項
+        document.getElementById('addTodoForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            const studentId = document.getElementById('add_student_id').value;
+            const task = document.getElementById('add_task').value;
+
+            fetch(`${API_URL}/todos`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ student_id: studentId, task: task, completed: false })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('代辦事項新增成功！');
+                document.getElementById('addTodoForm').reset();
+                document.getElementById('fetchTodos').click(); // 重新載入代辦事項列表
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('新增失敗，請再試一次！');
+            });
+        });
+
+        // 取得代辦事項
+        document.getElementById('fetchTodos').addEventListener('click', function () {
+            const studentId = document.getElementById('list_student_id').value.trim();
+
+            const todosTable = document.getElementById('todosTable');
+            const messageDiv = document.getElementById('message');
+            todosTable.style.display = 'none';
+            todosTable.querySelector('tbody').innerHTML = '';
+            messageDiv.textContent = '';
+
+            fetch(`${API_URL}/todos?student_id=${studentId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('無法取得資料，請檢查學生ID是否正確！');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.todos && data.todos.length > 0) {
+                        const tbody = todosTable.querySelector('tbody');
+                        data.todos.forEach(todo => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${todo.id}</td>
+                                <td>${todo.task}</td>
+                                <td>${todo.completed ? '✔️ 完成' : '❌ 未完成'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning" onclick="editTodo(${todo.id}, '${todo.task}', ${todo.completed}, '${studentId}')">修改</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteTodo(${todo.id}, '${studentId}')">刪除</button>
+                                </td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+
+                        todosTable.style.display = 'table';
+                    } else {
+                        messageDiv.textContent = '未找到任何代辦事項。';
+                        messageDiv.className = 'text-warning';
+                    }
+                })
+                .catch(error => {
+                    messageDiv.textContent = error.message;
+                    messageDiv.className = 'text-danger';
+                    console.error('Error:', error);
+                });
+        });
+
+        // 修改代辦事項
+        function editTodo(id, task, completed, studentId) {
+            document.getElementById('edit_todo_id').value = id;
+            document.getElementById('edit_task').value = task;
+            document.getElementById('edit_completed').checked = completed;
+            document.getElementById('edit_student_id').value = studentId;
+
+            const modal = new bootstrap.Modal(document.getElementById('editTodoModal'));
+            modal.show();
+        }
+
+        document.getElementById('editTodoForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            const id = document.getElementById('edit_todo_id').value;
+            const studentId = document.getElementById('edit_student_id').value;
+            const task = document.getElementById('edit_task').value;
+            const completed = document.getElementById('edit_completed').checked;
+
+            fetch(`${API_URL}/todos/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ student_id: studentId, task: task, completed: completed })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('代辦事項修改成功！');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editTodoModal'));
+                modal.hide();
+                document.getElementById('fetchTodos').click(); // 重新載入代辦事項列表
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('修改失敗，請再試一次！');
+            });
+        });
+
+        // 刪除代辦事項
+        function deleteTodo(id, studentId) {
+            if (!confirm('確定要刪除此代辦事項嗎？')) return;
+
+            fetch(`${API_URL}/todos/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ student_id: studentId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message || '代辦事項已刪除！');
+                document.getElementById('fetchTodos').click(); // 重新載入代辦事項列表
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('刪除失敗，請再試一次！');
+            });
+        }
+    </script>
+</body>
+</html>
